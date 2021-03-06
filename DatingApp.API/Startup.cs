@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -13,6 +14,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 
 namespace DatingApp.API
 {
@@ -30,6 +33,17 @@ namespace DatingApp.API
         {
             services.AddDbContext<DataContext>(x=>x.UseSqlite(Configuration.GetConnectionString("DefaultConnection"))); 
             services.AddControllers();
+            services.AddScoped<IAuthRepository,AuthRepository>();
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options=>{
+                    options.TokenValidationParameters=new Microsoft.IdentityModel.Tokens.TokenValidationParameters{
+                        ValidateIssuerSigningKey=true,
+                        IssuerSigningKey=new SymmetricSecurityKey(Encoding.ASCII
+                        .GetBytes( Configuration.GetSection("AppSettings:Token").Value)),
+                        ValidateIssuer=false,
+                        ValidateAudience=false
+                    };
+                });
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "DatingApp.API", Version = "v1" });
@@ -48,15 +62,18 @@ namespace DatingApp.API
             }
 
             app.UseHttpsRedirection();
-
+            app.UseAuthentication();
             app.UseRouting();
-
             app.UseAuthorization();
+
             app.UseCors(x=>x.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+            
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
             });
+           
+            
         }
     }
 }
